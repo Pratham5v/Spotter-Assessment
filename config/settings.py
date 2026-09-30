@@ -1,14 +1,17 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
-SECRET_KEY = (
-    os.environ.get("DJANGO_SECRET_KEY") or "local-development-only-change-before-deployment"
-)
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("Set DJANGO_SECRET_KEY when DJANGO_DEBUG is disabled")
+    SECRET_KEY = "local-development-only-change-before-deployment"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
 INSTALLED_APPS = [
     "django.contrib.admin",

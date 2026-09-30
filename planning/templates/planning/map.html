@@ -1,0 +1,16 @@
+{% load static %}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fuel itinerary</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>body{margin:0;font:16px system-ui;color:#172b3a;background:#f4f7f9}header,aside{padding:20px;max-width:1000px;margin:auto}h1{margin:0 0 8px}#map{height:60vh;min-height:350px}li{margin:12px 0}.muted{color:#526673}</style></head>
+<body><header><h1>Your fuel itinerary</h1><p>{{ plan.route.distance_miles|floatformat:1 }} miles · ${{ plan.fuel.total_cost_usd }} purchased · {{ plan.fuel.purchased_gallons|floatformat:3 }} gallons</p>
+<p class="muted">Full 50-gallon start · 10 MPG · partial fills · initial fuel cost excluded</p></header>
+<div id="map" aria-label="Road route and fuel station map"></div>
+<p id="map-status" role="status" class="muted"></p>
+<aside><h2>Ordered itinerary</h2><p>Blue: road route · green: fuel purchase · gray: visited without purchase</p><ol>
+{% for station in plan.visited_stations %}<li>{{ station.name }} — {{ station.source_address }}{% for stop in plan.fuel_stops %}{% if stop.visited_station_sequence == station.sequence %} · {{ stop.gallons_purchased|floatformat:3 }} gal · ${{ stop.cost_usd }}{% endif %}{% endfor %}{% if not station.purchased_here %} · visited without purchase{% endif %}</li>{% empty %}<li>No fuel purchase needed.</li>{% endfor %}</ol>
+<p>{{ plan.fuel.consumed_gallons|floatformat:3 }} gallons consumed; {{ plan.fuel.remaining_gallons|floatformat:3 }} gallons remaining.</p>
+<p class="muted">Prices are a supplied dataset snapshot, with unknown grade and observation date. Purchases are optimized on this selected itinerary; station selection is heuristic. Provider road snapping verifies waypoints rather than individual pumps. Map expires at {{ plan.map_expires_at }}.</p>
+<p>Routing: © openrouteservice / HeiGIT · map data © OpenStreetMap contributors</p></aside>
+{{ plan|json_script:"plan-data" }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="{% static 'planning/map.js' %}"></script></body></html>
