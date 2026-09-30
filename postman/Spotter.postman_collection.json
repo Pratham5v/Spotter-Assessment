@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "Spotter assessment - local demo",
+    "description": "No provider keys. Live cases require prepared boundaries and accepted private station data. Map uses the saved response.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "map_path",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Live long route - requires accepted coordinates",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": {\n    \"latitude\": 32.7555,\n    \"longitude\": -97.3308\n  },\n  \"finish\": {\n    \"latitude\": 33.749,\n    \"longitude\": -84.388\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/route-plan/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set(\"map_path\", body.map_url);",
+              "pm.test(\"Routing attempts within budget\", () => pm.expect(body.diagnostics.routing_attempts_this_request).to.be.at.most(3));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repeat same route - inspect plan cache hit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": {\n    \"latitude\": 32.7555,\n    \"longitude\": -97.3308\n  },\n  \"finish\": {\n    \"latitude\": 33.749,\n    \"longitude\": -84.388\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/route-plan/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set(\"map_path\", body.map_url);",
+              "pm.test(\"Routing attempts within budget\", () => pm.expect(body.diagnostics.routing_attempts_this_request).to.be.at.most(3));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Saved exact map",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}{{map_path}}"
+      }
+    },
+    {
+      "name": "Invalid latitude",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": {\n    \"latitude\": 100,\n    \"longitude\": -97.3308\n  },\n  \"finish\": {\n    \"latitude\": 33.749,\n    \"longitude\": -84.388\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/route-plan/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zero-distance trip",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": {\n    \"latitude\": 32.7555,\n    \"longitude\": -97.3308\n  },\n  \"finish\": {\n    \"latitude\": 32.7555,\n    \"longitude\": -97.3308\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/route-plan/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Expected HTTP status\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set(\"map_path\", body.map_url);",
+              "pm.test(\"Routing attempts within budget\", () => pm.expect(body.diagnostics.routing_attempts_this_request).to.be.at.most(3));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -8,5 +8,7 @@ __pycache__
 data/raw
 data/enriched
 data/cache
+data/boundaries
+staticfiles
 private
 *.log
