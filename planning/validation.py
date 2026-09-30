@@ -2,7 +2,13 @@
 
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 
+from planning.domain import PlanError
 from planning.fuel import CAPACITY, METRES_PER_MILE, MPG
+
+
+def require(condition):
+    if not condition:
+        raise PlanError("INVALID_FUEL_PLAN", "Independent fuel validation failed.", 500)
 
 
 def validate_plan(occurrences, purchases, distance_m, tolerance=Decimal("1e-12")):
@@ -13,20 +19,20 @@ def validate_plan(occurrences, purchases, distance_m, tolerance=Decimal("1e-12")
         seen = set()
         for purchase in purchases:
             node = nodes[purchase.occurrence_id]
-            assert purchase.occurrence_id not in seen
+            require(purchase.occurrence_id not in seen)
             seen.add(purchase.occurrence_id)
-            assert node.station_id == purchase.station_id and node.price == purchase.price
-            assert (
+            require(node.station_id == purchase.station_id and node.price == purchase.price)
+            require(
                 node.position_m == purchase.position_m and previous <= node.position_m < distance_m
             )
             fuel -= (node.position_m - previous) / METRES_PER_MILE / MPG
-            assert fuel >= -tolerance and abs(fuel - purchase.arrival_gallons) <= tolerance
-            assert (
+            require(fuel >= -tolerance and abs(fuel - purchase.arrival_gallons) <= tolerance)
+            require(
                 purchase.gallons > 0
                 and abs(purchase.cost - purchase.gallons * node.price) <= tolerance
             )
             fuel += purchase.gallons
-            assert (
+            require(
                 fuel <= CAPACITY + tolerance and abs(fuel - purchase.departure_gallons) <= tolerance
             )
             bought += purchase.gallons
@@ -34,9 +40,9 @@ def validate_plan(occurrences, purchases, distance_m, tolerance=Decimal("1e-12")
             previous = node.position_m
         consumed = distance_m / METRES_PER_MILE / MPG
         fuel -= (distance_m - previous) / METRES_PER_MILE / MPG
-        assert fuel >= -tolerance
-        assert abs(CAPACITY + bought - consumed - fuel) <= tolerance
-        assert abs(bought - max(Decimal(0), consumed - CAPACITY)) <= tolerance
+        require(fuel >= -tolerance)
+        require(abs(CAPACITY + bought - consumed - fuel) <= tolerance)
+        require(abs(bought - max(Decimal(0), consumed - CAPACITY)) <= tolerance)
         return {
             "consumed": consumed,
             "purchased": bought,
