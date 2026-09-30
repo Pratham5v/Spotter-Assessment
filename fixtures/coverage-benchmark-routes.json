@@ -1,0 +1,112 @@
+[
+  {
+    "name": "Fort Worth to Atlanta",
+    "start": [
+      -97.3308,
+      32.7555
+    ],
+    "finish": [
+      -84.388,
+      33.749
+    ]
+  },
+  {
+    "name": "Chicago to New York",
+    "start": [
+      -87.6298,
+      41.8781
+    ],
+    "finish": [
+      -74.006,
+      40.7128
+    ]
+  },
+  {
+    "name": "Los Angeles to Denver",
+    "start": [
+      -118.2437,
+      34.0522
+    ],
+    "finish": [
+      -104.9903,
+      39.7392
+    ]
+  },
+  {
+    "name": "Seattle to Boise",
+    "start": [
+      -122.3321,
+      47.6062
+    ],
+    "finish": [
+      -116.2023,
+      43.615
+    ]
+  },
+  {
+    "name": "Miami to Atlanta",
+    "start": [
+      -80.1918,
+      25.7617
+    ],
+    "finish": [
+      -84.388,
+      33.749
+    ]
+  },
+  {
+    "name": "Dallas to Fort Worth",
+    "start": [
+      -96.797,
+      32.777
+    ],
+    "finish": [
+      -97.3308,
+      32.7555
+    ]
+  },
+  {
+    "name": "Atlanta to Fort Worth",
+    "start": [
+      -84.388,
+      33.749
+    ],
+    "finish": [
+      -97.3308,
+      32.7555
+    ]
+  },
+  {
+    "name": "Seattle to Denver",
+    "start": [
+      -122.3321,
+      47.6062
+    ],
+    "finish": [
+      -104.9903,
+      39.7392
+    ]
+  },
+  {
+    "name": "Minneapolis to Dallas",
+    "start": [
+      -93.265,
+      44.9778
+    ],
+    "finish": [
+      -96.797,
+      32.777
+    ]
+  },
+  {
+    "name": "Detroit to New York",
+    "start": [
+      -83.0458,
+      42.3314
+    ],
+    "finish": [
+      -74.006,
+      40.7128
+    ]
+  }
+]
