@@ -141,8 +141,8 @@ def prepared_sources(tmp_path, extra_identity=False, extra_feature=False):
 def test_two_employer_ids_claiming_one_pin_remain_separate_and_unaccepted(tmp_path):
     import json
 
+    from stations.artifacts import load_artifact
     from stations.atp_matching import match_sources
-    from stations.enrichment import load_artifact
 
     audit, manifest = prepared_sources(tmp_path, extra_identity=True)
     artifact, report = match_sources(audit, manifest, lambda point: True)

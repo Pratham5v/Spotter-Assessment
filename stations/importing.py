@@ -4,7 +4,7 @@ import json
 from django.db import transaction
 from django.utils import timezone
 
-from stations.enrichment import load_artifact
+from stations.artifacts import load_artifact
 from stations.ingestion import NORMALIZATION, PRICE_POLICY, audit_csv
 from stations.models import DatasetImport, PriceObservation, Station
 

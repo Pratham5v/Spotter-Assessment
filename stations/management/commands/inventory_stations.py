@@ -2,7 +2,7 @@ import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from stations.enrichment import write_json
+from stations.artifacts import write_json
 from stations.ingestion import AuditError, audit_csv
 from stations.inventory import inventory
 

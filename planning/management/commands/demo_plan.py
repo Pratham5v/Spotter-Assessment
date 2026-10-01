@@ -14,7 +14,7 @@ from django.test.utils import override_settings
 from planning.domain import StationOccurrence
 from planning.fuel import METRES_PER_MILE
 from planning.planner import build_plan
-from stations.enrichment import write_json
+from stations.artifacts import write_json
 from stations.importing import import_snapshot
 from stations.ingestion import audit_csv
 

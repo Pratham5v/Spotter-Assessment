@@ -1,71 +1,11 @@
-"""Coordinate evidence contracts and conservative identity matching."""
+"""Validation and atomic writing of prepared coordinate artifacts."""
 
 import hashlib
 import json
 import math
-import re
 from pathlib import Path
 
 from stations.ingestion import AuditError
-
-VERSION = "identity_evidence_v1"
-BRANDS = [
-    ("FLYING J", "Flying J"),
-    ("PILOT", "Pilot"),
-    ("LOVES", "Love's"),
-    ("CASEYS", "Casey's"),
-    ("ROAD RANGER", "Road Ranger"),
-    ("7ELEVEN", "7-Eleven"),
-    ("CIRCLE K", "Circle K"),
-    ("ALLSUPS", "Allsup's"),
-]
-
-
-def words(text):
-    return re.sub(r"[^a-z0-9 ]", "", text.casefold())
-
-
-def station_name(name):
-    clean = words(name).upper()
-    brand = next(
-        (replacement for token, replacement in BRANDS if token in clean),
-        re.sub(r"\s*#.*$", "", name).strip(),
-    )
-    number = re.search(r"#\s*(\d+)", name)
-    return brand, number.group(1) if number else None
-
-
-def match_candidate(fields, feature):
-    brand, number = station_name(fields["Truckstop Name"])
-    reasons = []
-    if feature.get("country_code") != "us" or feature.get("state_code") != fields["State"]:
-        return "rejected", ["country_or_state_mismatch"]
-    if feature.get("result_type") not in ("amenity", "building"):
-        return "rejected", ["not_a_facility"]
-    if feature.get("category") != "service.vehicle.fuel":
-        reasons.append("fuel_identity_unconfirmed")
-    name_match = words(brand) in words(feature.get("name") or "")
-    if not name_match:
-        reasons.append("name_mismatch")
-    # A provider confidence number is not branch evidence.
-    reference = str(feature.get("store_ref") or "")
-    store_match = bool(number and reference == number)
-    address = fields["Address"]
-    numbered = re.match(r"^(\d+)\s+(.+)$", address) if "exit" not in address.casefold() else None
-    exact_address = bool(
-        numbered
-        and feature.get("housenumber") == numbered.group(1)
-        and words(feature.get("street") or "") == words(numbered.group(2))
-        and words(feature.get("city") or "") == words(fields["City"])
-    )
-    if store_match or exact_address:
-        if not reasons and feature.get("result_type") == "amenity":
-            return "accepted", [
-                "fuel_poi",
-                "store_reference_match" if store_match else "exact_number_street_locality",
-            ]
-    reasons.append("branch_or_address_evidence_required")
-    return "review_required", reasons
 
 
 def load_artifact(path, audit):

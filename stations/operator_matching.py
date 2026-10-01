@@ -2,7 +2,7 @@
 
 import math
 
-from stations.enrichment import station_name, words
+from stations.identity import station_name, words
 
 VERSION = "pilot_official_reference_city_v1"
 

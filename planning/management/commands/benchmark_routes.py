@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 
 from planning import planner
 from planning.domain import PlanError
-from stations.enrichment import write_json
+from stations.artifacts import write_json
 from stations.models import DatasetImport
 
 
@@ -21,7 +21,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--live", action="store_true")
-        parser.add_argument("--routes", default="fixtures/benchmark-routes.json")
+        parser.add_argument("--routes", default="fixtures/coverage-benchmark-routes.json")
         parser.add_argument("--repetitions", type=int, default=2)
         parser.add_argument("--output", default="data/cache/benchmark.json")
 
