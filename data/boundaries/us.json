@@ -1,0 +1,7 @@
+{
+  "source": "Census TIGER2025 STATE",
+  "source_url": "https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip",
+  "source_sha256": "59a220888a8d9be8117c4fcd38f542bd02d81abf0d198c78113595ad540dd957",
+  "source_crs": "EPSG:4269",
+  "boundary_sha256": "7af34ad0b7d9bc06d080a420dacb1ddf1271b9b3778f3a8045f5973dc42be438"
+}

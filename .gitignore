@@ -9,9 +9,14 @@ __pycache__/
 .coverage
 htmlcov/
 staticfiles/
-data/raw/
-data/enriched/
-data/boundaries/
+data/raw/*
+!data/raw/fuel-prices.csv
+data/enriched/*
+!data/enriched/stations.json
+data/boundaries/*
+!data/boundaries/us.wkb
+!data/boundaries/territories.wkb
+!data/boundaries/us.json
 data/cache/
 *.log
 *.dump

@@ -1,1 +1,8 @@
 * text=auto eol=lf
+
+# Dataset identity and the manifest depend on these exact source bytes.
+data/raw/fuel-prices.csv -text whitespace=cr-at-eol
+data/enriched/stations.json -text whitespace=cr-at-eol
+data/boundaries/us.wkb -text
+data/boundaries/territories.wkb -text
+data/boundaries/us.json -text whitespace=cr-at-eol

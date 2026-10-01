@@ -1,0 +1,27 @@
+[
+  {
+    "path": "data/raw/fuel-prices.csv",
+    "sha256": "C704371F141DED9C54DF6C32D488A0BA2CEB589F88C936C967DAA5330E0CD241",
+    "bytes": 577081
+  },
+  {
+    "path": "data/enriched/stations.json",
+    "sha256": "D48DE1FAAD03AB497813BF1289AF26EBFAD08C6C635C39BB0F525E39DAA0B103",
+    "bytes": 6489974
+  },
+  {
+    "path": "data/boundaries/us.wkb",
+    "sha256": "7AF34AD0B7D9BC06D080A420DACB1DDF1271B9B3778F3A8045F5973DC42BE438",
+    "bytes": 1544341
+  },
+  {
+    "path": "data/boundaries/territories.wkb",
+    "sha256": "5660244DF95C65564BAAF13BC116937F87ABA13A353E5CF3F27725AE63E3A941",
+    "bytes": 64087
+  },
+  {
+    "path": "data/boundaries/us.json",
+    "sha256": "E6B44D1B5A5C7DC5FE0B2760A5E42F202D95459C1EB8B628041726C37860DE80",
+    "bytes": 341
+  }
+]

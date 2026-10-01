@@ -36,17 +36,20 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Set `DB_PASSWORD` to a private local password in `.env`. The remaining local
-defaults support the offline demo. Start the application on any platform:
+Set `DB_PASSWORD` to a private local password in `.env`. Add `ORS_API_KEY` for
+live routing and optionally `GEOAPIFY_API_KEY` for map tiles. Without provider
+keys, the included catalogue, tests and offline demo remain available. Start
+the application on any platform:
 
 ```sh
 docker compose up --build -d
 docker compose exec web python manage.py demo_plan
 ```
 
-Startup waits for PostgreSQL, applies migrations and creates the shared cache
-table. [GET /health/](http://127.0.0.1:8000/health/) checks web-process liveness.
-Live planning also needs the data and ORS credential described below.
+Startup waits for PostgreSQL, applies migrations, creates the shared cache table
+and imports the included catalogue. Identical imports are no-ops on subsequent
+starts. [GET /health/](http://127.0.0.1:8000/health/) checks web-process liveness.
+Live routing requires an ORS credential.
 
 The offline demo makes no provider requests. Its synthetic 900-mile itinerary
 has a $4 station at mile 400: 40 gallons purchased, $160 cost and zero remaining
@@ -60,20 +63,19 @@ is illustrative and its map URL is not served by the web process.
 | Restart | `docker compose up -d` |
 | Rebuild after source changes | `docker compose up --build -d web` |
 
-PostgreSQL persists in a named volume. Source is built into the image; private
+PostgreSQL persists in a named volume. Source is built into the image; runtime
 data is mounted from `data/`. The local web server binds to `127.0.0.1:8000` and
 uses Django's development server.
 
 ## Live planning setup
 
-Synthetic fixtures and the benchmark route manifest are included in Git. The
-assessment CSV and prepared coordinates are supplied separately in a private
-data package. Without that package, tests and the offline demo are available.
-
-Merge the package's `data/` directory into the repository root:
+The repository includes the supplied price CSV, prepared station coordinates
+and US boundaries. No separate download, geocoding run or data handoff is needed:
 
 ```text
 data/
+  manifest.json
+  README.md
   raw/fuel-prices.csv
   enriched/stations.json
   boundaries/us.wkb
@@ -81,24 +83,30 @@ data/
   boundaries/us.json
 ```
 
-The package manifest contains SHA-256 hashes. Preserve file bytes: the importer
-uses content hashes for dataset identity. The catalogue contains 8,151 source
+The [manifest](data/manifest.json) records SHA-256 hashes and byte sizes. Preserve
+file bytes: the importer uses content hashes for dataset identity. The catalogue contains 8,151 source
 observations, 6,626 US station identities and 1,400 accepted coordinates.
 
 Set `ORS_API_KEY` in `.env` to an openrouteservice credential with access to
-`driving-hgv`. `GEOAPIFY_API_KEY` enables optional background map tiles. Reload the
-environment and import the catalogue using the same commands on every platform:
+`driving-hgv`. `GEOAPIFY_API_KEY` enables optional background map tiles. If you
+change these settings after startup, recreate the web container:
 
 ```sh
 docker compose up -d --force-recreate web
+```
+
+Docker startup imports the included files without external requests. A new dataset
+activates atomically after validation; each request retains one captured dataset
+version. For an explicit import or native setup, run:
+
+```sh
 docker compose exec web python manage.py import_fuel_data data/raw/fuel-prices.csv data/enriched/stations.json
 ```
 
-Identical imports are no-ops. A new dataset activates atomically after validation;
-each request retains one captured dataset version. Startup does not acquire or
-import station data. Contact the repository owner for the private data package.
+[Data sources and notices](data/README.md) describe the bundled inputs. Raw research
+material, provider caches and credentials are excluded.
 
-To prepare boundaries separately, download the official
+The prepared boundaries are included. To rebuild them, download the official
 [Census TIGER2025 state archive](https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip)
 to `data/raw/tl_2025_us_state.zip` and run:
 
@@ -119,8 +127,9 @@ docker compose exec web python manage.py prepare_us_boundaries data/raw/tl_2025_
 | `US_BOUNDARY_PATH` | Defaults to `data/boundaries/us.wkb`. |
 | `DB_NAME`, `DB_USER`, `DB_HOST`, `DB_PORT` | Native database connection. Compose overrides name/user/host with `spotter`/`spotter`/`db`; port defaults to 5432. |
 
-`.env`, private data, local Compose overrides and generated outputs are excluded
-from Git and the Docker build context. Choose the database password before first
+`.env`, raw research material, local Compose overrides and generated outputs are
+excluded from Git and the Docker build context. The bundled runtime files are
+tracked in Git and mounted into Docker. Choose the database password before first
 startup; changing it later also requires changing the existing PostgreSQL login.
 
 ## API
@@ -325,6 +334,7 @@ platforms from the activated environment:
 python -m pip install -r requirements.txt
 python manage.py migrate
 python manage.py createcachetable
+python manage.py import_fuel_data data/raw/fuel-prices.csv data/enriched/stations.json
 python manage.py runserver 127.0.0.1:8000
 ```
 
@@ -335,4 +345,5 @@ For import, demo and checks, omit `docker compose exec web` from the commands ab
 Attribution: routes © openrouteservice / HeiGIT; basemap © Geoapify and
 OpenStreetMap contributors; boundaries from the US Census Bureau. Leaflet uses
 BSD-2-Clause. Operator-derived coordinates retain All the Places source provenance.
-The assessment CSV and prepared data package are privately supplied.
+The supplied assessment CSV and prepared catalogue are included; source-specific
+notices are in [data/README.md](data/README.md).
