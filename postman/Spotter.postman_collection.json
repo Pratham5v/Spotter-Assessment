@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Spotter assessment - local demo",
-    "description": "No provider keys. Live cases require prepared boundaries and accepted private station data. Map uses the saved response.",
+    "name": "Spotter fuel route API",
+    "description": "Route planning, cached repeats, saved maps and input validation. Live routes require prepared station data, boundaries and a server-side ORS credential. Configure provider keys on the server; the collection contains no credentials.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [

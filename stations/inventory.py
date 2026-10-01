@@ -1,4 +1,4 @@
-"""Deterministic employer identities; extracted hints are not accepted locations."""
+"""Deterministic source identities and search hints for coordinate matching."""
 
 import re
 from collections import Counter

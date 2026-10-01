@@ -8,7 +8,7 @@ from stations.inventory import inventory
 
 
 class Command(BaseCommand):
-    help = "Inventory every US employer identity offline, preserving aliases and search hints."
+    help = "Inventory US source identities, preserving aliases and search hints."
 
     def add_arguments(self, parser):
         parser.add_argument("source")

@@ -17,7 +17,7 @@ from stations.models import DatasetImport
 
 
 class Command(BaseCommand):
-    help = "Bounded live route evidence with repeated requests, timings and query counts; dry run by default."
+    help = "Benchmark route planning and cache repeats with timings and query counts; preview by default."
 
     def add_arguments(self, parser):
         parser.add_argument("--live", action="store_true")

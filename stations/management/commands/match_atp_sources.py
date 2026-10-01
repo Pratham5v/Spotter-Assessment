@@ -11,7 +11,7 @@ from stations.ingestion import AuditError, audit_csv
 
 
 class Command(BaseCommand):
-    help = "Match inspected published ATP references offline; retain every unresolved identity."
+    help = "Match supported ATP operator references offline and preserve unresolved identities."
 
     def add_arguments(self, parser):
         parser.add_argument("source")
@@ -19,7 +19,8 @@ class Command(BaseCommand):
         parser.add_argument("--output", default="data/enriched/atp-stations.json")
         parser.add_argument("--report", default="data/enriched/atp-decisions.json")
         parser.add_argument(
-            "--baseline", help="Recheck an existing artifact without hiding new conflicts"
+            "--baseline",
+            help="Validate a prior artifact against source conflicts and shared coordinates",
         )
 
     def handle(self, source, manifest, **options):

@@ -1,4 +1,4 @@
-"""Small offline joins for explicitly inspected ATP operator reference namespaces."""
+"""Source-specific offline joins for supported ATP operator reference namespaces."""
 
 import hashlib
 import json
@@ -14,7 +14,7 @@ from stations.inventory import inventory
 from stations.operator_matching import match_pilot
 
 VERSION = "atp_branch_locality_v1"
-# Other acquired collectors remain discovery-only until their identifiers are proven.
+# Only these collectors have supported reference and coordinate contracts.
 OPERATORS = {
     "Love's": "loves_us",
     "Kwik Trip": "kwik_trip",
@@ -200,7 +200,7 @@ def match_sources(audit, manifest_path, validate_point):
 
 
 def reconcile_baseline(artifact, baseline_records, audit, validate_point):
-    """Recheck legacy evidence; new contradictions are never overwritten by old acceptance."""
+    """Validate prior acceptance against source updates and coordinate collisions."""
     reconciled = []
     geod = Geod(ellps="WGS84")
     for record in artifact["records"]:
@@ -239,7 +239,7 @@ def reconcile_baseline(artifact, baseline_records, audit, validate_point):
                 record.update(previous)
                 record["evidence"] = {
                     **previous["evidence"],
-                    "baseline_reconciliation": "Original operator evidence rechecked; published collector omits dealer records. No new contradictory candidate.",
+                    "baseline_reconciliation": "Operator-directory record satisfies identity and boundary checks; no matching or conflicting published collector record.",
                 }
                 decision["outcome"] = "legacy_operator_evidence_rechecked_and_retained"
             else:
