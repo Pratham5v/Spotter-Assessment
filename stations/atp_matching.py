@@ -7,8 +7,11 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from pyproj import Geod
+
 from stations.ingestion import AuditError
 from stations.inventory import inventory
+from stations.operator_matching import match_pilot
 
 VERSION = "atp_branch_locality_v1"
 # Other acquired collectors remain discovery-only until their identifiers are proven.
@@ -194,3 +197,69 @@ def match_sources(audit, manifest_path, validate_point):
         "decisions": decisions,
     }
     return artifact, report
+
+
+def reconcile_baseline(artifact, baseline_records, audit, validate_point):
+    """Recheck legacy evidence; new contradictions are never overwritten by old acceptance."""
+    reconciled = []
+    geod = Geod(ellps="WGS84")
+    for record in artifact["records"]:
+        previous = baseline_records.get(record["opis_id"])
+        if not previous or previous["status"] != "accepted":
+            continue
+        decision = {"opis_id": record["opis_id"], "new_source_status": record["status"]}
+        if record["status"] == "accepted":
+            decision["facility_point_displacement_m"] = abs(
+                geod.inv(
+                    previous["longitude"],
+                    previous["latitude"],
+                    record["longitude"],
+                    record["latitude"],
+                )[2]
+            )
+            old_address = previous["evidence"].get("official_location", {}).get("address")
+            props = record["evidence"]["operator_location"]["properties"]
+            new_address = props.get("addr:street_address")
+            if old_address and text_key(old_address) != text_key(new_address):
+                record.update(status="review_required", latitude=None, longitude=None)
+                record["evidence"]["identity_reason"] = ["baseline_physical_address_conflict"]
+                decision["outcome"] = "conflict_excluded"
+            else:
+                decision["outcome"] = "new_operator_point_supersedes_previous_point"
+        elif record["status"] == "unresolved" and record["evidence"]["identity_reason"] == [
+            "no_supported_source_reference_candidate"
+        ]:
+            old_location = previous["evidence"].get("official_location")
+            valid_old = (
+                old_location
+                and match_pilot(audit.stations[record["opis_id"]]["fields"], old_location)[0]
+                == "accepted"
+            )
+            if valid_old and validate_point([previous["longitude"], previous["latitude"]]):
+                record.update(previous)
+                record["evidence"] = {
+                    **previous["evidence"],
+                    "baseline_reconciliation": "Original operator evidence rechecked; published collector omits dealer records. No new contradictory candidate.",
+                }
+                decision["outcome"] = "legacy_operator_evidence_rechecked_and_retained"
+            else:
+                decision["outcome"] = "legacy_not_reaccepted"
+        else:
+            decision["outcome"] = "new_ambiguity_not_overridden"
+        reconciled.append(decision)
+    # Retained legacy points must obey the same collision gate as new matches.
+    claimed = defaultdict(list)
+    for record in artifact["records"]:
+        if record["status"] == "accepted":
+            claimed[record["longitude"], record["latitude"]].append(record)
+    for records in claimed.values():
+        if len(records) > 1:
+            for record in records:
+                record.update(status="review_required", latitude=None, longitude=None)
+                record["evidence"]["identity_reason"] = [
+                    "shared_coordinate_requires_identity_review"
+                ]
+                for decision in reconciled:
+                    if decision["opis_id"] == record["opis_id"]:
+                        decision["outcome"] = "shared_coordinate_excluded_after_reconciliation"
+    return reconciled
