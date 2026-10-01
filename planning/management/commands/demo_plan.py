@@ -56,7 +56,7 @@ class Command(BaseCommand):
                             "source": "synthetic",
                             "evidence": {
                                 "identity_reason": "authored synthetic fixture",
-                                "retrieved_at": "2026-09-30T00:00:00Z",
+                                "retrieved_at": "2000-01-01T00:00:00Z",
                             },
                         }
                     ],

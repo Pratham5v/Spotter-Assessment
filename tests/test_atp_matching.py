@@ -119,7 +119,7 @@ def prepared_sources(tmp_path, extra_identity=False, extra_feature=False):
         json.dumps(
             {
                 "release": "synthetic-release",
-                "retrieved_at": "2026-10-01T00:00:00Z",
+                "retrieved_at": "2000-01-01T00:00:00Z",
                 "sources": [
                     {
                         "status": "available",

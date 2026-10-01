@@ -12,3 +12,4 @@ data/boundaries
 staticfiles
 private
 *.log
+compose.override.yaml

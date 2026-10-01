@@ -27,7 +27,7 @@ def synthetic_source(tmp_path):
                         "source": "synthetic",
                         "evidence": {
                             "identity_reason": "authored test fixture",
-                            "retrieved_at": "2026-09-30T00:00:00Z",
+                            "retrieved_at": "2000-01-01T00:00:00Z",
                         },
                     }
                 ],

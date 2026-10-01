@@ -17,3 +17,4 @@ data/cache/
 *.dump
 private/
 *.sqlite3
+compose.override.yaml
