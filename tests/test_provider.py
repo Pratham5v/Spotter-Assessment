@@ -100,3 +100,27 @@ def test_route_cache_requires_no_outbound_call(memory_cache, settings):
         first, second = RoutingBudget(), RoutingBudget()
         assert directions(POINTS, [350, 350], first) == directions(POINTS, [350, 350], second)
     assert first.attempts == 1 and second.attempts == 0 and second.cache_hits == 1
+
+
+def test_hgv_policy_is_sent_explicitly_without_invented_vehicle_dimensions(memory_cache, settings):
+    import json
+
+    settings.ORS_API_KEY = "test"
+    real_client = httpx.Client
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json=response())
+
+    with (
+        patch("planning.providers.ors.validate_geometry"),
+        patch(
+            "planning.providers.ors.httpx.Client",
+            side_effect=lambda **kwargs: real_client(
+                transport=httpx.MockTransport(handler), **kwargs
+            ),
+        ),
+    ):
+        directions(POINTS, [350, 350], RoutingBudget())
+    assert seen[0]["options"] == {"avoid_borders": "all", "vehicle_type": "hgv"}

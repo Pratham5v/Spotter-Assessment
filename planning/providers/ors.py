@@ -12,7 +12,7 @@ from planning.domain import PlanError
 from planning.geography import validate_geometry
 
 GEOD = Geod(ellps="WGS84")
-VERSION = "ors_hgv_v1"
+VERSION = "ors_hgv_vehicle_type_v2"
 URL = "https://api.openrouteservice.org/v2/directions/driving-hgv/geojson"
 
 
@@ -147,7 +147,7 @@ def directions(coordinates, radiuses, budget):
         "radiuses": radiuses,
         "instructions": True,
         "extra_info": ["countryinfo"],
-        "options": {"avoid_borders": "all"},
+        "options": {"avoid_borders": "all", "vehicle_type": "hgv"},
     }
     cache_key = key("route", [VERSION, payload])
     cached = get_json(cache_key)

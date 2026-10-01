@@ -12,6 +12,7 @@ from planning.cache import get_json, key, set_json
 from planning.domain import PlanError
 from planning.fuel import RANGE_M, VERSION, solve
 from planning.geography import validate_endpoint
+from planning.providers.ors import VERSION as ROUTING_VERSION
 from planning.providers.ors import RoutingBudget, directions
 from planning.validation import cents, decimal_string, validate_plan
 from stations.models import DatasetImport
@@ -88,6 +89,7 @@ def build_plan(start, finish):
             boundary_version,
             VERSION,
             geometry.VERSION,
+            ROUTING_VERSION,
             "full50_partial_zeroreserve",
             100,
             350,
