@@ -104,60 +104,61 @@ def build_plan(start, finish):
             elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
         )
         return cached
-    budget, all_candidates, selected, repair = RoutingBudget(), [], [], False
-    if start == finish:
-        base = {
-            "geometry": {"type": "Point", "coordinates": start},
-            "distance_m": "0",
-            "duration_seconds": 0,
-            "legs_m": ["0"],
-            "snapped": [start, finish],
-            "snap_distances_m": [0, 0],
-            "warnings": [],
-        }
-        final = base
-    else:
-        base = directions([start, finish], [350, 350], budget)
-        final = base
-        if Decimal(base["distance_m"]) > RANGE_M:
-            all_candidates = geometry.candidates(base, dataset.id)
-            projected = solve(
-                [c["occurrence"] for c in all_candidates], Decimal(base["distance_m"])
-            )
-            by_id = {c["occurrence"].occurrence_id: c for c in all_candidates}
-            selected = [by_id[p.occurrence_id] for p in projected]
-            coordinates = [
-                start,
-                *[[c["station"]["longitude"], c["station"]["latitude"]] for c in selected],
-                finish,
-            ]
-            final = directions(coordinates, [350, *[100] * len(selected), 350], budget)
-    try:
-        occurrences, purchases, totals = routed_purchases(final, selected)
-    except PlanError as exc:
-        if budget.attempts >= 3 or not selected:
-            raise PlanError(
-                "NO_VERIFIED_PLAN", "Actual routed legs cannot support the selected fuel plan."
-            ) from exc
-        final["base_distance_m"] = base["distance_m"]
-        selected = bridge_candidates(all_candidates, selected, final)
-        repair = True
-        final = directions(
-            [
-                start,
-                *[[c["station"]["longitude"], c["station"]["latitude"]] for c in selected],
-                finish,
-            ],
-            [350, *[100] * len(selected), 350],
-            budget,
-        )
+    all_candidates, selected, repair = [], [], False
+    with RoutingBudget() as budget:
+        if start == finish:
+            base = {
+                "geometry": {"type": "Point", "coordinates": start},
+                "distance_m": "0",
+                "duration_seconds": 0,
+                "legs_m": ["0"],
+                "snapped": [start, finish],
+                "snap_distances_m": [0, 0],
+                "warnings": [],
+            }
+            final = base
+        else:
+            base = directions([start, finish], [350, 350], budget)
+            final = base
+            if Decimal(base["distance_m"]) > RANGE_M:
+                all_candidates = geometry.candidates(base, dataset.id)
+                projected = solve(
+                    [c["occurrence"] for c in all_candidates], Decimal(base["distance_m"])
+                )
+                by_id = {c["occurrence"].occurrence_id: c for c in all_candidates}
+                selected = [by_id[p.occurrence_id] for p in projected]
+                coordinates = [
+                    start,
+                    *[[c["station"]["longitude"], c["station"]["latitude"]] for c in selected],
+                    finish,
+                ]
+                final = directions(coordinates, [350, *[100] * len(selected), 350], budget)
         try:
             occurrences, purchases, totals = routed_purchases(final, selected)
-        except PlanError as repair_error:
-            raise PlanError(
-                "NO_VERIFIED_PLAN",
-                "One bounded itinerary repair did not produce a feasible fuel plan.",
-            ) from repair_error
+        except PlanError as exc:
+            if budget.attempts >= 3 or not selected:
+                raise PlanError(
+                    "NO_VERIFIED_PLAN", "Actual routed legs cannot support the selected fuel plan."
+                ) from exc
+            final["base_distance_m"] = base["distance_m"]
+            selected = bridge_candidates(all_candidates, selected, final)
+            repair = True
+            final = directions(
+                [
+                    start,
+                    *[[c["station"]["longitude"], c["station"]["latitude"]] for c in selected],
+                    finish,
+                ],
+                [350, *[100] * len(selected), 350],
+                budget,
+            )
+            try:
+                occurrences, purchases, totals = routed_purchases(final, selected)
+            except PlanError as repair_error:
+                raise PlanError(
+                    "NO_VERIFIED_PLAN",
+                    "One bounded itinerary repair did not produce a feasible fuel plan.",
+                ) from repair_error
     by_purchase = {p.occurrence_id: p for p in purchases}
     visited, stops = [], []
     for sequence, (candidate, occurrence) in enumerate(zip(selected, occurrences, strict=True), 1):

@@ -21,6 +21,20 @@ class RoutingBudget:
     attempts: int = 0
     cache_hits: int = 0
     started: float = field(default_factory=time.monotonic)
+    _client: httpx.Client | None = field(default=None, init=False, repr=False)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self._client is not None:
+            self._client.close()
+
+    def client(self):
+        # Created only for a real attempt; cached/zero-distance plans need none.
+        if self._client is None:
+            self._client = httpx.Client()
+        return self._client
 
     def remaining_seconds(self):
         return 35 - (time.monotonic() - self.started)
@@ -164,12 +178,13 @@ def directions(coordinates, radiuses, budget):
         remaining = max(0.1, budget.remaining_seconds())
         try:
             timeout = httpx.Timeout(min(15, remaining), connect=min(5, remaining))
-            with (
-                httpx.Client(timeout=timeout) as client,
-                client.stream(
-                    "POST", URL, json=payload, headers={"Authorization": settings.ORS_API_KEY}
-                ) as response,
-            ):
+            with budget.client().stream(
+                "POST",
+                URL,
+                json=payload,
+                headers={"Authorization": settings.ORS_API_KEY},
+                timeout=timeout,
+            ) as response:
                 chunks, size = [], 0
                 for chunk in response.iter_bytes():
                     if budget.remaining_seconds() <= 0:

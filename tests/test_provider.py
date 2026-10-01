@@ -58,7 +58,7 @@ def test_http_failures_are_safe_and_budgeted(memory_cache, settings, status, cod
         "planning.providers.ors.httpx.Client",
         side_effect=lambda **kwargs: real_client(transport=transport, **kwargs),
     ):
-        with pytest.raises(PlanError) as caught:
+        with budget, pytest.raises(PlanError) as caught:
             directions(POINTS, [350, 350], budget)
     assert caught.value.code == code
     assert "test-private-key" not in str(caught.value)
@@ -77,7 +77,7 @@ def test_timeout_retry_cannot_become_a_fourth_attempt(memory_cache, settings):
         "planning.providers.ors.httpx.Client",
         side_effect=lambda **kwargs: real_client(transport=httpx.MockTransport(timeout), **kwargs),
     ):
-        with pytest.raises(PlanError) as caught:
+        with budget, pytest.raises(PlanError) as caught:
             directions(POINTS, [350, 350], budget)
     assert budget.attempts == 3 and caught.value.code == "PROVIDER_TIMEOUT"
     with pytest.raises(PlanError):
@@ -97,8 +97,8 @@ def test_route_cache_requires_no_outbound_call(memory_cache, settings):
             ),
         ),
     ):
-        first, second = RoutingBudget(), RoutingBudget()
-        assert directions(POINTS, [350, 350], first) == directions(POINTS, [350, 350], second)
+        with RoutingBudget() as first, RoutingBudget() as second:
+            assert directions(POINTS, [350, 350], first) == directions(POINTS, [350, 350], second)
     assert first.attempts == 1 and second.attempts == 0 and second.cache_hits == 1
 
 
@@ -122,5 +122,6 @@ def test_hgv_policy_is_sent_explicitly_without_invented_vehicle_dimensions(memor
             ),
         ),
     ):
-        directions(POINTS, [350, 350], RoutingBudget())
+        with RoutingBudget() as budget:
+            directions(POINTS, [350, 350], budget)
     assert seen[0]["options"] == {"avoid_borders": "all", "vehicle_type": "hgv"}

@@ -271,6 +271,10 @@ not establish an upstream provider-cold request.
   Route/stop selection is heuristic; additional facilities can increase road distance
   and cost.
 
+The bounded performance pass removes unused station projections and reuses one
+request-scoped provider connection. See [performance verification](docs/performance.md)
+for identical-response comparisons, observed HTTP timings and their limits.
+
 ## Development
 
 Run checks on any platform with Docker:
