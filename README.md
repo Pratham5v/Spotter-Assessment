@@ -10,6 +10,10 @@ divisible purchases and zero destination reserve. Purchase cost excludes the
 initial tank. The purchase calculation is optimal for the selected fixed
 itinerary; route and station selection are heuristic.
 
+[Quick start](#quick-start) · [API and example](#api) ·
+[How planning works](#how-planning-works) · [Catalogue](#catalogue-and-coordinate-evidence) ·
+[Evidence and limitations](#evidence-and-limitations) · [Development](#development)
+
 ## Quick start
 
 Docker runs the application and PostgreSQL on Windows, macOS and Linux. No host
@@ -49,7 +53,7 @@ docker compose exec web python manage.py demo_plan
 Startup waits for PostgreSQL, applies migrations, creates the shared cache table
 and imports the included catalogue. Identical imports are no-ops on subsequent
 starts. [GET /health/](http://127.0.0.1:8000/health/) checks web-process liveness.
-Live routing requires an ORS credential.
+Live routing requires an ORS credential with access to `driving-hgv`.
 
 The offline demo makes no provider requests. Its synthetic 900-mile itinerary
 has a $4 station at mile 400: 40 gallons purchased, $160 cost and zero remaining
@@ -67,54 +71,14 @@ PostgreSQL persists in a named volume. Source is built into the image; runtime
 data is mounted from `data/`. The local web server binds to `127.0.0.1:8000` and
 uses Django's development server.
 
-## Live planning setup
-
-The repository includes the supplied price CSV, prepared station coordinates
-and US boundaries. No separate download, geocoding run or data handoff is needed:
-
-```text
-data/
-  manifest.json
-  README.md
-  raw/fuel-prices.csv
-  enriched/stations.json
-  boundaries/us.wkb
-  boundaries/territories.wkb
-  boundaries/us.json
-```
-
-The [manifest](data/manifest.json) records SHA-256 hashes and byte sizes. Preserve
-file bytes: the importer uses content hashes for dataset identity. The catalogue contains 8,151 source
-observations, 6,626 US station identities and 1,400 accepted coordinates.
-
-Set `ORS_API_KEY` in `.env` to an openrouteservice credential with access to
-`driving-hgv`. `GEOAPIFY_API_KEY` enables optional background map tiles. If you
-change these settings after startup, recreate the web container:
+If you change provider credentials after startup, recreate the web container:
 
 ```sh
 docker compose up -d --force-recreate web
 ```
 
-Docker startup imports the included files without external requests. A new dataset
-activates atomically after validation; each request retains one captured dataset
-version. For an explicit import or native setup, run:
-
-```sh
-docker compose exec web python manage.py import_fuel_data data/raw/fuel-prices.csv data/enriched/stations.json
-```
-
-[Data sources and notices](data/README.md) describe the bundled inputs. Raw research
-material, provider caches and credentials are excluded.
-
-The prepared boundaries are included. To rebuild them, download the official
-[Census TIGER2025 state archive](https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip)
-to `data/raw/tl_2025_us_state.zip` and run:
-
-```sh
-docker compose exec web python manage.py prepare_us_boundaries data/raw/tl_2025_us_state.zip
-```
-
-### Configuration
+<details>
+<summary>Additional configuration</summary>
 
 | Setting | Purpose |
 | --- | --- |
@@ -131,6 +95,8 @@ docker compose exec web python manage.py prepare_us_boundaries data/raw/tl_2025_
 excluded from Git and the Docker build context. The bundled runtime files are
 tracked in Git and mounted into Docker. Choose the database password before first
 startup; changing it later also requires changing the existing PostgreSQL login.
+
+</details>
 
 ## API
 
@@ -157,23 +123,34 @@ out-of-range values and extra fields are rejected. Endpoints must be within the
 | `assumptions`, `provenance` | Fuel model and dataset, price, algorithm, boundary and provider versions. |
 | `diagnostics`, `warnings` | Routing attempts, cache hits, repair status and limitations. |
 
-The synthetic demo returns this `fuel` object:
+### Recorded example
+
+The request above is the Fort Worth → Atlanta benchmark case. Its recorded run
+returned an 815.95-mile final itinerary, two purchases totalling **$94.47**, and
+two actual routing attempts. The following excerpt shows selected response
+fields; geometry, purchases and other metadata are omitted:
 
 ```json
 {
-  "initial_gallons": "50",
-  "capacity_gallons": "50",
-  "mpg": "10",
-  "consumed_gallons": "90.000000000000",
-  "purchased_gallons": "40.000000000000",
-  "remaining_gallons": "0.000000000000",
-  "total_cost_usd": "160.00"
+  "route": {"distance_miles": "815.953891772051"},
+  "fuel": {"total_cost_usd": "94.47"},
+  "diagnostics": {
+    "routing_attempts_this_request": 2,
+    "plan_cache_hit": false,
+    "repair_used": false
+  }
 }
 ```
 
-This example belongs to the synthetic itinerary, rather than the live request
-above. Quantities are decimal strings. Purchase costs round half-up to cents;
-the total sums the displayed line items.
+An immediate repeat returned the same saved itinerary with `plan_cache_hit: true`
+and zero routing attempts. These are recorded results, not promises for a new
+request: provider responses, catalogue versions and cache state affect planning.
+Use the `map_url` from your own response; saved links expire after one hour.
+
+Fuel quantities and prices are decimal strings. The response distinguishes fuel
+consumed from fuel purchased: the initial 50 gallons are available without a
+purchase charge. Purchase costs round half-up to cents; the total sums the
+displayed line items.
 
 ### Map and Postman
 
@@ -200,15 +177,19 @@ Errors contain `error.code`, `error.message`, optional safe details and `request
 | 422 | `NO_VERIFIED_PLAN`: final itinerary is infeasible within the repair budget. |
 | 422 | `ROUTE_GEOGRAPHY_UNVERIFIED`, `STATION_ACCESS_UNVERIFIED`: geography or snap check failed. |
 | 503 | `DATA_NOT_READY`, `PROVIDER_UNAVAILABLE`, `PROVIDER_QUOTA_EXCEEDED`. |
+| 502 | `INVALID_PROVIDER_RESPONSE`: provider response failed validation. |
 | 504 | `PROVIDER_TIMEOUT`. |
+| 500 | `INTERNAL_ERROR`: unexpected application failure. |
 
-## Architecture
+## How planning works
 
 `stations` handles ingestion, coordinate matching, provenance and versioned
 catalogues. `planning` contains the Decimal fuel solver, independent validator,
 ORS adapter, station projection, orchestration, caches and map. `config` holds
 the Django settings and URL configuration. The runtime uses Django REST Framework
 and PostgreSQL.
+
+For an uncached journey requiring fuel purchases:
 
 1. Validate endpoints, capture the active dataset and check the saved-plan cache.
 2. Request an ORS `driving-hgv` base route with `vehicle_type: hgv` and
@@ -220,12 +201,53 @@ and PostgreSQL.
 5. Attempt one bridge repair for a final fuel gap if budget remains. Independently
    validate capacity, fuel conservation and serialised quantities, then save the plan.
 
-A fuel itinerary normally needs two routing attempts; retries and repair share
-a maximum of three actual attempts per request. A journey requiring no purchase
-usually needs one. Successful plans are cached for one hour; a saved-plan hit
-makes zero routing calls. Cache keys include relevant dataset, boundary and
-routing-policy versions. See [the algorithm](docs/algorithm.md) for the greedy
-rule, worked examples and optimality scope.
+| Request or action | Actual routing attempts |
+| --- | --- |
+| Zero-distance request | 0 |
+| Uncached journey requiring no purchase | Usually 1 |
+| Uncached journey with selected fuel facilities | Usually 2 |
+| Valid saved-plan hit or opening its map | 0 |
+
+Successful plans are cached for one hour. A cached base route can also reduce
+attempts without providing a complete saved plan. Cache keys include relevant
+dataset, boundary and routing-policy versions; tile requests are separate from
+routing. See [the algorithm](docs/algorithm.md) for the greedy rule, worked
+examples and optimality scope.
+
+### Decisions and tradeoffs
+
+| Decision | Reason and boundary |
+| --- | --- |
+| Offline, source-specific coordinate matching | A plausible point or town centre does not establish a branch. Uncertain facilities remain unavailable for planning rather than becoming fallback stops. |
+| Median of distinct positive prices per OPIS identity | Duplicate rows cannot overweight a price, and the lowest observation is not automatically preferred. Unknown grade and date still limit price interpretation. |
+| Project first, then route through facilities | Projection makes candidate selection practical; final road legs account for access distance. The extra routing attempt verifies the selected itinerary, not a globally cheapest route. |
+| Preserve distinct occurrences on loops | The same facility can be encountered at different journey positions. Nearby stations are not merged merely because they are close. |
+| Decimal purchases and independent validation | Divisible purchases avoid unnecessary full tanks; a separate simulation checks range, capacity, conservation and serialized quantities. |
+| Versioned datasets and shared PostgreSQL cache | Atomic activation keeps each request on one catalogue version. Shared snapshots let requests and maps reuse the same itinerary across web processes. |
+| Bounded provider work | Retries and repair share the attempt limit and deadline. Failure to establish a feasible itinerary returns an error rather than an unverified plan. |
+
+## Catalogue and coordinate evidence
+
+The repository includes all five runtime inputs: the supplied price CSV,
+prepared station coordinates and three boundary files. No separate download,
+geocoding run or private data handoff is required. Startup imports them without
+external requests.
+
+| Catalogue measure | Count |
+| --- | ---: |
+| Preserved source observations | 8,151 |
+| US station identities | 6,626 |
+| Accepted coordinates | 1,400 |
+| Review-required identities | 94 |
+| Unresolved identities | 5,132 |
+| States with accepted facilities | 43 |
+
+The [manifest](data/manifest.json) records SHA-256 hashes and byte sizes. Preserve
+file bytes: content hashes contribute to dataset identity. New datasets activate
+atomically after validation; each request retains one captured dataset version.
+[Data sources and notices](data/README.md) document the input paths and their
+separate provenance and licensing. Raw research material, provider caches and
+credentials are excluded.
 
 The importer preserves all source observations, including duplicates and 620
 Canadian rows. Canadian rows do not become routing candidates. US OPIS identities
@@ -233,15 +255,17 @@ use the **median of distinct positive prices**, so duplicate rows cannot
 overweight a price. The catalogue retains source observations and coordinate
 evidence for each dataset version.
 
-The prepared catalogue has 1,400 accepted facilities across 43 states: 1,398 from
-published All the Places operator-derived records and two from validated operator
-directory records. Supported reference namespaces include Love's, Pilot/Flying J,
+Accepted coordinates comprise 1,398 published All the Places operator-derived
+records and two validated operator-directory records. Supported reference namespaces include Love's, Pilot/Flying J,
 Kwik Trip/Star and Sheetz. Acceptance requires compatible branch reference,
 operator, state, locality, physical address, fuel-facility evidence, supported-US
 coordinates and provenance. Unproven renames, conflicting identities and shared
 coordinates remain unresolved or review-required.
 
-## Benchmarks and limitations
+Acceptance under these documented rules is documentary, machine-assisted evidence;
+it is not field verification or independent human verification.
+
+## Evidence and limitations
 
 The reference benchmark uses `fixtures/coverage-benchmark-routes.json`, the
 1,400-coordinate catalogue and the explicit HGV policy above. Each case has two
@@ -280,9 +304,18 @@ not establish an upstream provider-cold request.
   Route/stop selection is heuristic; additional facilities can increase road distance
   and cost.
 
-The bounded performance pass removes unused station projections and reuses one
-request-scoped provider connection. See [performance verification](docs/performance.md)
-for identical-response comparisons, observed HTTP timings and their limits.
+### Performance and metrics
+
+| Measured operation | Observed time |
+| --- | ---: |
+| Fresh purchase-plan HTTP response, two separate journey comparisons | **2.11–2.21 s** |
+| Cached repeats in the same experiment | **28–33 ms** |
+
+The planner skips unnecessary station projections and reuses one request-scoped
+provider connection. Cached repeats make zero routing calls. These limited local
+samples include network/provider variation and establish neither a production
+percentile nor an SLA. See [performance verification](docs/performance.md) for
+the comparison method, baseline timings and identical-response checks.
 
 ## Development
 
@@ -296,14 +329,45 @@ docker compose exec web python manage.py check
 docker compose exec web python manage.py makemigrations --check --dry-run
 ```
 
-Tests use synthetic data and mocked providers. They cover a seeded exhaustive
-solver oracle, range edges, route loops, road-distance repair, import atomicity,
-source conflicts, input validation and saved maps.
+Tests use synthetic data and mocked providers; ordinary checks need no provider
+keys. Representative coverage connects the tests to the guarantees:
+
+| Behavior or invariant | Tests |
+| --- | --- |
+| Partial purchases, exact range edges and seeded exhaustive solver comparisons | [`test_fuel.py`](tests/test_fuel.py) |
+| Distinct route occurrences and station projection | [`test_geometry.py`](tests/test_geometry.py) |
+| Final-road repair and visited facilities requiring no purchase | [`test_planner.py`](tests/test_planner.py) |
+| Branch conflicts, source evidence and coordinate collisions | [`test_atp_matching.py`](tests/test_atp_matching.py), [`test_operator_matching.py`](tests/test_operator_matching.py) |
+| Observation preservation, import rollback and idempotency | [`test_ingestion.py`](tests/test_ingestion.py), [`test_importing.py`](tests/test_importing.py) |
+| Provider budgets, client lifecycle, safe errors and saved maps | [`test_provider.py`](tests/test_provider.py), [`test_routing_client.py`](tests/test_routing_client.py), [`test_api.py`](tests/test_api.py), [`test_hardening.py`](tests/test_hardening.py) |
+
+These checks complement the recorded live benchmark; mocked-provider tests do
+not establish nationwide coverage or live provider availability.
 
 Preview the benchmark with `docker compose exec web python manage.py benchmark_routes`.
 Add `--live` to run it against the routing provider; this consumes provider allowance.
 The command retains caches and writes timings, query counts, attempts and failures
 to ignored `data/cache/benchmark.json`.
+
+<details>
+<summary>Explicit catalogue import and boundary maintenance</summary>
+
+Docker startup already imports the bundled catalogue. To request an explicit
+import:
+
+```sh
+docker compose exec web python manage.py import_fuel_data data/raw/fuel-prices.csv data/enriched/stations.json
+```
+
+Prepared boundaries are included. If rebuilding them, download the official
+[Census TIGER2025 state archive](https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip)
+to `data/raw/tl_2025_us_state.zip`, then run:
+
+```sh
+docker compose exec web python manage.py prepare_us_boundaries data/raw/tl_2025_us_state.zip
+```
+
+</details>
 
 <details>
 <summary>Optional native setup</summary>

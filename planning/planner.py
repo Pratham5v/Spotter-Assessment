@@ -286,7 +286,10 @@ def build_plan(start, finish):
         },
         "warnings": [
             "Prices are a supplied snapshot with unknown grade and observation date.",
-            "Only independently accepted station coordinates participate; coverage may be incomplete.",
+            (
+                "Only station coordinates accepted under the documented matching rules "
+                "participate; coverage may be incomplete."
+            ),
         ],
     }
     set_json("map:" + plan_id, response)
