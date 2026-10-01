@@ -72,6 +72,8 @@ def candidates(route, dataset_id):
                 box(lon - lon_margin, lat - lat_margin, lon + lon_margin, lat + lat_margin)
             )
         )
+        if not indices:
+            continue
         project = Transformer.from_crs(
             4326, f"+proj=aeqd +lat_0={lat} +lon_0={lon} +datum=WGS84 +units=m", always_xy=True
         )

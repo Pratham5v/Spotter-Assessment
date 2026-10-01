@@ -54,3 +54,11 @@ def test_whole_route_check_detects_foreign_hole_between_valid_endpoints():
         with pytest.raises(PlanError) as foreign:
             validate_endpoint([20, 20])
         assert foreign.value.code == "OUTSIDE_US"
+
+
+def test_station_without_segment_hits_does_not_construct_transformer(active_dataset):
+    # Inside the route's database bounding box, far from every segment.
+    active_dataset.stations.update(longitude=-99, latitude=35.3)
+    with patch("planning.geometry.Transformer.from_crs") as transformer:
+        assert candidates(road([[-100, 35], [-100, 36], [-98, 36]]), active_dataset.id) == []
+    transformer.assert_not_called()
