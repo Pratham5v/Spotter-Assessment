@@ -189,6 +189,50 @@ ORS adapter, station projection, orchestration, caches and map. `config` holds
 the Django settings and URL configuration. The runtime uses Django REST Framework
 and PostgreSQL.
 
+### Architecture
+
+Location matching is an offline preparation step. Reviewer startup uses the
+bundled inputs; it does not acquire coordinates or call providers.
+
+```mermaid
+flowchart LR
+    CSV["Supplied price CSV"] --> PREP["Audit observations and OPIS identities<br/>Aggregate distinct positive prices"]
+    EVIDENCE["Source-linked location evidence"] --> MATCH["Offline branch matching<br/>Accept, hold for review or leave unresolved"]
+    PREP --> MATCH
+    MATCH --> BUNDLE["Bundled runtime catalogue<br/>CSV, coordinates and US boundaries"]
+    BUNDLE --> IMPORT["Startup validation and import<br/>Identical inputs are a no-op"]
+    IMPORT --> DB[("PostgreSQL<br/>Versioned catalogue; atomic activation")]
+```
+
+Each request captures one active catalogue version. Routing responses and saved
+plans use separate versioned caches in PostgreSQL.
+
+```mermaid
+flowchart TD
+    API["POST start and finish coordinates"] --> CHECK["Validate US endpoints<br/>Capture active catalogue"]
+    CHECK --> CACHE{"Valid saved plan and map?"}
+    CACHE -->|Yes| OUTPUT["JSON response and saved map link"]
+    CACHE -->|No| ZERO{"Same start and finish?"}
+    ZERO -->|Yes| FINAL["Solve purchases on actual road legs<br/>Independently validate fuel and serialized values"]
+    ZERO -->|No| BASE["ORS driving-hgv base route<br/>Reuse cached road response when available<br/>Check complete US geometry and endpoint snaps"]
+    BASE --> NEED{"Distance exceeds starting range?"}
+    NEED -->|No| FINAL
+    NEED -->|Yes| SELECT["Discover accepted corridor facilities<br/>Preserve distinct route occurrences<br/>Select provisional purchases"]
+    SELECT --> ROAD["Route through selected facilities<br/>Check US geometry and facility snaps"]
+    ROAD --> FINAL
+    FINAL -->|Feasible| SAVE["Save plan and map snapshot for one hour"]
+    SAVE --> OUTPUT
+    FINAL -->|Fuel gap and repair budget remains| REPAIR["One bounded bridge repair"]
+    REPAIR --> ROAD
+    FINAL -->|Cannot verify| ERROR["Structured error"]
+    OUTPUT --> MAP["GET saved map<br/>Render stored itinerary without rerouting"]
+```
+
+Retries and repair share a maximum of three actual routing attempts and one
+routing deadline. Invalid inputs, insufficient coverage or invalid provider
+responses also return structured errors. Optional map tiles use a separate cache.
+
+
 For an uncached journey requiring fuel purchases:
 
 1. Validate endpoints, capture the active dataset and check the saved-plan cache.

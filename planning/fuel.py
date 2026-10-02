@@ -61,6 +61,9 @@ def _solve(occurrences, distance):
         previous_m = position
         if index == len(nodes):
             break
+        # Greedy purchase rule: buy only enough to reach the first cheaper station within full-tank range; otherwise fill up, capped by fuel needed to finish.
+        # Quantities are optimal for this fixed itinerary; route/stop selection is heuristic.
+        # Fuel quantities here represent the distance they can cover, in metres.
         cheaper = lower[index]
         target = (
             positions[cheaper] - position
